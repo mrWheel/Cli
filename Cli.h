@@ -34,6 +34,7 @@ typedef struct t_cmd {
   t_fct fct;
   struct t_cmd *next;
 };
+int pParm = 0;
 
 
 class Cli{
@@ -41,6 +42,8 @@ class Cli{
     t_cmd *_cmdList;  // linked list of commands
 
   public :
+    String parm;
+
     // Constructor
     Cli(HardwareSerial& serial) : _serial(serial) { _cmdList = NULL;}
 
@@ -54,6 +57,28 @@ class Cli{
         delete(current);
       }
     }
+
+    // toLower helper function
+    char toLower(char c) {
+      if (c >= 65 && c <= 90) {
+          c += 32;
+      } 
+      return c;
+    }
+    
+    // everything after a space is put in parm.
+    char readParm(void) {
+      delay(20);
+      parm = "";
+   	  while (_serial.available() > 0) {
+   	  	char p = (char)_serial.read();
+   	  	if (p >= ' ') {
+   	  	  parm = parm + String(p);
+        }
+      }
+      return '\n';
+
+    }	// readParm()
 
     // RegisterCmd() function
     // Allow the user to register a new user command
@@ -74,7 +99,7 @@ class Cli{
       t_cmd *newCmd = new(t_cmd);
       if (newCmd == NULL) return -1; // allocation failure
       newCmd->fct = fct;
-      for (unsigned int i=0; i<=length; i++) newCmd->name[i] = name[i];
+      for (unsigned int i=0; i<=length; i++) newCmd->name[i] = toLower(name[i]);
 
       // attach the new command to the linked list
       if (_cmdList == NULL)
@@ -103,10 +128,12 @@ class Cli{
       while (_serial.available() > 0)
       {
         newChar = _serial.read();
+        if (newChar == ' ') newChar = readParm(); // this is where the magic hapens
         if (newChar == '\r') continue; // ignore CR chars
         if (newChar == '\n') 
         { 
           inData[index] = NULL;
+          
           index = 0;
           for (current = _cmdList; current != NULL ; current = current->next)
           {
@@ -119,7 +146,7 @@ class Cli{
           }
         }
         else if (index == CMD_NAME_MAX_LENGTH) index = 0; // restart acquisition from zero
-        else inData[index++] = newChar;
+        else inData[index++] = toLower(newChar);
       }
     }
 };
